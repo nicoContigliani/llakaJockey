@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Versus Hockey · Polígono Dinámico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            background: #0a0817;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            background: #0d0b1a;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #menu {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 11, 26, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            padding: 20px;
+            gap: 20px;
+            color: #fff;
+        }
+        #menu h1 {
+            color: #00f5ff;
+            font-size: clamp(28px, 6vw, 48px);
+            text-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        #menu .sub {
+            color: #7a7a9a;
+            font-size: clamp(14px, 2vw, 18px);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #c0c0e0;
+            font-weight: 600;
+            width: min(420px, 90%);
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .config-row label {
+            min-width: 80px;
+            font-size: clamp(14px, 1.5vw, 16px);
+        }
+        .config-row input[type="number"] {
+            background: #1a1a2e;
+            border: 2px solid #3a3a5a;
+            color: #b0b0d0;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: clamp(14px, 1.5vw, 18px);
+            width: 80px;
+            text-align: center;
+            outline: none;
+        }
+        .config-row input[type="number"]:focus {
+            border-color: #00f5ff;
+        }
+        .config-row input[type="number"]::-webkit-inner-spin-button {
+            opacity: 1;
+        }
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .btn-opt {
+            background: #1a1a2e;
+            border: 2px solid #3a3a5a;
+            color: #b0b0d0;
+            padding: 6px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.15s;
+            font-size: clamp(12px, 1.2vw, 14px);
+        }
+        .btn-opt:hover {
+            background: #2a2a4a;
+        }
+        .btn-opt.active {
+            background: #00f5ff;
+            border-color: #00f5ff;
+            color: #0a0817;
+            box-shadow: 0 0 20px #00f5ff;
+        }
+        .btn-start {
+            background: #101026;
+            border: 2px solid #00f5ff;
+            color: #00f5ff;
+            padding: 14px 30px;
+            font-size: clamp(18px, 2.5vw, 24px);
+            font-weight: bold;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            width: min(300px, 80%);
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        .btn-start:hover {
+            background: #00f5ff;
+            color: #0a0817;
+            box-shadow: 0 0 40px #00f5ff;
+            transform: scale(1.03);
+        }
+        #game-canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+        .info {
+            color: #6a6a8a;
+            font-size: clamp(12px, 1.2vw, 14px);
+            text-align: center;
+            max-width: 400px;
+        }
+        @media (max-width: 600px) {
+            .config-row {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .config-row input[type="number"] {
+                width: 100%;
+            }
+            .btn-start {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="menu">
+            <h1>🏒 VERSUS HOCKEY</h1>
+            <div class="sub">Cada jugador en su lado · Movimiento a lo largo del lado</div>
+            <div class="config-row">
+                <label>Oponentes:</label>
+                <input type="number" id="oppInput" value="2" min="1" max="20" step="1" />
+            </div>
+            <div class="config-row">
+                <label>Dificultad IA:</label>
+                <div class="btn-group" id="diffSelector">
+                    <button class="btn-opt" data-val="easy">Fácil</button>
+                    <button class="btn-opt active" data-val="medium">Media</button>
+                    <button class="btn-opt" data-val="hard">Difícil</button>
+                    <button class="btn-opt" data-val="mixed">Mixta</button>
+                </div>
+            </div>
+            <div class="info">Los bots roban el disco · Dificultad afecta <strong>inteligencia</strong>, no velocidad</div>
+            <button class="btn-start" id="playBtn">JUGAR</button>
+        </div>
+        <div id="game-canvas"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.24.0/dist/phaser.min.js">
+    </script>
+    <script>
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
+        const W = 960,
+            H = 680;
+        const PUCK_SPEED = 420;
+        const BASE_RADIUS = 18;
+
+        let opponents = 2;
+        let difficulty = 'medium';
+
+        // Leer el input numérico
+        const oppInput = document.getElementById('oppInput');
+        oppInput.addEventListener('change', function() {
+            let val = parseInt(this.value);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 20) val = 20;
+            this.value = val;
+            opponents = val;
+        });
+        oppInput.addEventListener('input', function() {
+            let val = parseInt(this.value);
+            if (!isNaN(val) && val >= 1 && val <= 20) opponents = val;
+        });
+
+        document.querySelectorAll('#diffSelector .btn-opt').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#diffSelector .btn-opt').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                difficulty = this.dataset.val;
+            });
+        });
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            document.getElementById('menu').style.display = 'none';
+            if (window.gameInstance) {
+                window.gameInstance.destroy(true);
+                window.gameInstance = null;
+            }
+            // Leer el valor actual del input (por si cambió)
+            opponents = parseInt(oppInput.value) || 2;
+            startGame(opponents, difficulty);
+        });
+
+        // ============================================================
+        // ESCENA PRINCIPAL
+        // ============================================================
+        class GameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'GameScene' });
+            }
+
+            init(data) {
+                if (data && data.opponents !== undefined) {
+                    this.numBots = data.opponents;
+                    this.diffMode = data.difficulty;
+                } else if (window._gameData) {
+                    this.numBots = window._gameData.opponents || 2;
+                    this.diffMode = window._gameData.difficulty || 'medium';
+                }
+                this.totalPlayers = 1 + this.numBots;
+            }
+
+            create() {
+                // ---------- GENERAR POLÍGONO ----------
+                let verts = [];
+                const N = this.totalPlayers;
+
+                // Caso especial: 2 jugadores totales -> rectángulo (4 lados)
+                if (N === 2) {
+                    const margin = 80;
+                    const w = W - 2 * margin;
+                    const h = H - 2 * margin;
+                    const cx = W / 2,
+                        cy = H / 2;
+                    verts = [
+                        { x: cx - w / 2, y: cy + h / 2 }, // inferior izquierdo
+                        { x: cx + w / 2, y: cy + h / 2 }, // inferior derecho
+                        { x: cx + w / 2, y: cy - h / 2 }, // superior derecho
+                        { x: cx - w / 2, y: cy - h / 2 } // superior izquierdo
+                    ];
+                    // Reordenar para que el lado inferior sea el primero (ya lo está: 0-1 es inferior)
+                } else {
+                    // Polígono regular con N lados
+                    const radius = Math.min(W, H) * 0.38;
+                    const cx = W / 2,
+                        cy = H / 2;
+                    for (let i = 0; i < N; i++) {
+                        const angle = -Math.PI / 2 + (i / N) * 2 * Math.PI;
+                        const x = cx + radius * Math.cos(angle);
+                        const y = cy + radius * Math.sin(angle);
+                        verts.push({ x, y });
+                    }
+                    // Reordenar para que el lado inferior (mayor Y) sea el primero
+                    let maxY = -Infinity,
+                        idxMax = 0;
+                    for (let i = 0; i < N; i++) {
+                        if (verts[i].y > maxY) { maxY = verts[i].y;
+                            idxMax = i; }
+                    }
+                    const rotated = [];
+                    for (let i = 0; i < N; i++) rotated.push(verts[(idxMax + i) % N]);
+                    verts = rotated;
+                }
+
+                this.polygonVertices = verts;
+
+                // Guardar lados
+                this.sides = [];
+                const n = verts.length;
+                for (let i = 0; i < n; i++) {
+                    const p1 = verts[i];
+                    const p2 = verts[(i + 1) % n];
+                    this.sides.push({
+                        p1: p1,
+                        p2: p2,
+                        label: i === 0 ? 'TÚ' : (i <= this.numBots ? `Bot ${i}` : '')
+                    });
+                }
+
+                // ---------- DIBUJAR CANCHA ----------
+                this.bg = this.add.graphics();
+                this.drawPolygon();
+
+                // ---------- JUGADOR HUMANO (lado 0, inferior) ----------
+                const humanSide = this.sides[0];
+                // Asegurar que p1 sea izquierda y p2 derecha (para que t=0 izquierda, t=1 derecha)
+                let p1 = humanSide.p1,
+                    p2 = humanSide.p2;
+                if (p1.x > p2.x) {
+                    [p1, p2] = [p2, p1];
+                }
+                this.humanSide = { p1: p1, p2: p2 };
+                this.humanT = 0.5;
+                const humanPos = this.getPointOnSide(this.humanSide, this.humanT);
+                const playerRadius = Math.max(12, Math.min(22, 18 - (this.numBots - 1) * 0.5));
+                this.player = this.add.circle(humanPos.x, humanPos.y, playerRadius, 0x00f5ff)
+                    .setStrokeStyle(3, 0xffffff);
+                this.humanLabel = this.add.text(humanPos.x, humanPos.y + 32, 'TÚ', { fontSize: '14px', fill: '#00f5ff',
+                        fontFamily: 'Arial', fontWeight: 'bold' })
+                    .setOrigin(0.5);
+                this.playerRadius = playerRadius;
+
+                // ---------- BOTS (lados 1..numBots) ----------
+                this.bots = [];
+                const profiles = [
+                    { color: 0x00ffaa, label: 'Fácil', type: 'easy' },
+                    { color: 0xffcc00, label: 'Medio', type: 'medium' },
+                    { color: 0xff3366, label: 'Difícil', type: 'hard' }
+                ];
+                let botTypes = [];
+                if (this.diffMode === 'mixed') {
+                    for (let i = 0; i < this.numBots; i++) botTypes.push(profiles[i % 3]);
+                } else {
+                    const p = profiles.find(p => p.type === this.diffMode) || profiles[1];
+                    for (let i = 0; i < this.numBots; i++) botTypes.push({ ...p });
+                }
+
+                // Si es rectángulo (N=2), solo hay un bot en el lado superior (índice 2)
+                // Pero en el array de sides, los lados son: 0=inferior, 1=derecho, 2=superior, 3=izquierdo (en rectángulo)
+                // Para N=2, queremos que el bot esté en el lado superior (índice 2)
+                // Para N>2, los bots están en los lados 1..N-1
+                let botSideIndices = [];
+                if (n === 4 && this.numBots === 1) {
+                    // Caso rectángulo con 1 bot: el bot en el lado superior (índice 2)
+                    botSideIndices = [2];
+                } else {
+                    for (let i = 1; i <= this.numBots && i < n; i++) {
+                        botSideIndices.push(i);
+                    }
+                }
+
+                for (let i = 0; i < this.numBots && i < botSideIndices.length; i++) {
+                    const sideIdx = botSideIndices[i];
+                    const side = this.sides[sideIdx];
+                    if (!side) continue;
+                    const prof = botTypes[i];
+                    const botRadius = Math.max(10, Math.min(18, 15 - (this.numBots - 1) * 0.4));
+                    const bot = {
+                        id: i,
+                        side: side,
+                        t: 0.5,
+                        color: prof.color,
+                        type: prof.type,
+                        label: prof.label,
+                        display: null,
+                        targetT: 0.5,
+                        speed: 0.065,
+                        reactionDelay: prof.type === 'easy' ? 300 : prof.type === 'medium' ? 120 : 20,
+                        delayTimer: 0,
+                        stealCooldown: 0,
+                        labelText: null,
+                        radius: botRadius
+                    };
+                    const pos = this.getPointOnSide(side, 0.5);
+                    bot.display = this.add.circle(pos.x, pos.y, botRadius, bot.color)
+                        .setStrokeStyle(2, 0xffffff);
+                    bot.labelText = this.add.text(pos.x, pos.y - 28, bot.label, { fontSize: '11px', fill: '#aaaacc',
+                        fontFamily: 'Arial', fontWeight: 'bold' })
+                        .setOrigin(0.5);
+                    this.bots.push(bot);
+                }
+
+                // ---------- DISCO ----------
+                const puckRadius = Math.max(7, Math.min(12, 10 - (this.numBots - 1) * 0.3));
+                this.puck = this.add.circle(W / 2, H / 2, puckRadius, 0xffffff);
+                this.puckVelocity = new Phaser.Math.Vector2(0, 0);
+                this.puckHistory = [];
+                this.puckRadius = puckRadius;
+
+                // ---------- CONTROLES ----------
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.keys = this.input.keyboard.addKeys({ A: 'A', D: 'D' });
+
+                // ---------- FÍSICA ----------
+                this.physics.world.setBounds(0, 0, W, H);
+                this.physics.add.existing(this.player);
+                this.player.body.setCircle(this.playerRadius);
+                this.player.body.setImmovable(true);
+                this.player.body.setCollideWorldBounds(false);
+
+                this.bots.forEach(bot => {
+                    this.physics.add.existing(bot.display);
+                    bot.display.body.setCircle(bot.radius);
+                    bot.display.body.setImmovable(true);
+                    bot.display.body.setCollideWorldBounds(false);
+                });
+
+                this.physics.add.collider(this.player, this.bots.map(b => b.display), (p, b) => {
+                    const angle = Phaser.Math.Angle.Between(p.x, p.y, b.x, b.y);
+                    const force = 0.8;
+                    p.x += Math.cos(angle) * force;
+                    p.y += Math.sin(angle) * force;
+                    b.x -= Math.cos(angle) * force;
+                    b.y -= Math.sin(angle) * force;
+                });
+
+                for (let i = 0; i < this.bots.length; i++) {
+                    for (let j = i + 1; j < this.bots.length; j++) {
+                        this.physics.add.collider(this.bots[i].display, this.bots[j].display, (a, b) => {
+                            const angle = Phaser.Math.Angle.Between(a.x, a.y, b.x, b.y);
+                            const force = 0.5;
+                            a.x += Math.cos(angle) * force;
+                            a.y += Math.sin(angle) * force;
+                            b.x -= Math.cos(angle) * force;
+                            b.y -= Math.sin(angle) * force;
+                        });
+                    }
+                }
+
+                // ---------- BOTÓN REINICIO ----------
+                this.createRestartButton();
+                this.isGameOver = false;
+                this.puckJustScored = false;
+
+                this.time.delayedCall(150, () => this.launchPuck());
+            }
+
+            // ---------- OBTENER PUNTO EN UN LADO ----------
+            getPointOnSide(side, t) {
+                return {
+                    x: side.p1.x + t * (side.p2.x - side.p1.x),
+                    y: side.p1.y + t * (side.p2.y - side.p1.y)
+                };
+            }
+
+            // ---------- DIBUJAR POLÍGONO ----------
+            drawPolygon() {
+                this.bg.clear();
+                const verts = this.polygonVertices;
+                this.bg.fillStyle(0x0e112a, 1);
+                this.bg.beginPath();
+                this.bg.moveTo(verts[0].x, verts[0].y);
+                for (let i = 1; i < verts.length; i++) this.bg.lineTo(verts[i].x, verts[i].y);
+                this.bg.closePath();
+                this.bg.fillPath();
+
+                this.bg.lineStyle(3, 0x00f5ff, 0.6);
+                for (let i = 0; i < verts.length; i++) {
+                    const p1 = verts[i];
+                    const p2 = verts[(i + 1) % verts.length];
+                    this.bg.lineBetween(p1.x, p1.y, p2.x, p2.y);
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2 - 18;
+                    const label = i === 0 ? 'TÚ' : (i <= this.numBots ? `Bot ${i}` : '');
+                    const color = i === 0 ? '#00f5ff' : '#aaaacc';
+                    if (label) {
+                        this.add.text(midX, midY, label, { fontSize: '12px', fill: color, fontFamily: 'Arial',
+                            fontWeight: 'bold' })
+                            .setOrigin(0.5);
+                    }
+                }
+            }
+
+            // ---------- LANZAR DISCO ----------
+            launchPuck() {
+                let angle = Phaser.Math.FloatBetween(0.3, 0.7) * Math.PI;
+                if (Math.random() > 0.5) angle += Math.PI;
+                this.puckVelocity.set(Math.cos(angle) * PUCK_SPEED, Math.sin(angle) * PUCK_SPEED);
+                if (Math.abs(this.puckVelocity.x) < 60) this.puckVelocity.x = 80 * (Math.random() > 0.5 ? 1 : -1);
+                if (Math.abs(this.puckVelocity.y) < 60) this.puckVelocity.y = 80 * (Math.random() > 0.5 ? 1 : -1);
+                this.puckVelocity.setLength(PUCK_SPEED);
+                this.puckJustScored = false;
+            }
+
+            // ---------- UPDATE ----------
+            update(time, delta) {
+                if (this.isGameOver || this.puckJustScored) return;
+                const dt = delta / 1000;
+
+                // ---- Movimiento humano ----
+                let move = 0;
+                if (this.cursors.left.isDown || this.keys.A.isDown) move = -1;
+                if (this.cursors.right.isDown || this.keys.D.isDown) move = 1;
+                if (move !== 0) {
+                    this.humanT += move * 1.2 * dt;
+                }
+                this.humanT = Phaser.Math.Clamp(this.humanT, 0, 1);
+                const humanPos = this.getPointOnSide(this.humanSide, this.humanT);
+                this.player.setPosition(humanPos.x, humanPos.y);
+                this.humanLabel.setPosition(humanPos.x, humanPos.y + 32);
+
+                // ---- IA de bots ----
+                this.bots.forEach(bot => {
+                    bot.delayTimer += delta;
+                    if (bot.delayTimer >= bot.reactionDelay) {
+                        bot.delayTimer = 0;
+                        const discPos = { x: this.puck.x, y: this.puck.y };
+                        let tTarget = this.projectPointOnSegment(bot.side, discPos);
+                        if (bot.type === 'easy') {
+                            // sin predicción
+                        } else if (bot.type === 'medium') {
+                            const err = Phaser.Math.FloatBetween(-0.12, 0.12);
+                            tTarget = Phaser.Math.Clamp(tTarget + err, 0, 1);
+                        } else if (bot.type === 'hard') {
+                            if (this.puckVelocity.length() > 10) {
+                                const futureX = this.puck.x + this.puckVelocity.x * 0.3;
+                                const futureY = this.puck.y + this.puckVelocity.y * 0.3;
+                                const tPred = this.projectPointOnSegment(bot.side, { x: futureX, y: futureY });
+                                tTarget = Phaser.Math.Clamp(tPred, 0, 1);
+                            }
+                            const dist = Phaser.Math.Distance.Between(bot.display.x, bot.display.y, this.puck.x, this
+                                .puck.y);
+                            if (dist > 200) {
+                                tTarget = Phaser.Math.Linear(tTarget, 0.5, 0.2);
+                            }
+                        }
+                        bot.targetT = Phaser.Math.Clamp(tTarget, 0, 1);
+                    }
+
+                    bot.t = Phaser.Math.Linear(bot.t, bot.targetT, bot.speed);
+                    bot.t = Phaser.Math.Clamp(bot.t, 0, 1);
+                    const pos = this.getPointOnSide(bot.side, bot.t);
+                    bot.display.setPosition(pos.x, pos.y);
+                    bot.labelText.setPosition(pos.x, pos.y - 28);
+
+                    const d = Phaser.Math.Distance.Between(pos.x, pos.y, this.puck.x, this.puck.y);
+                    if (d < bot.radius + this.puckRadius + 2 && bot.stealCooldown <= 0) {
+                        const ang = Phaser.Math.Angle.Between(this.puck.x, this.puck.y, this.player.x, this.player.y);
+                        this.puckVelocity.x += Math.cos(ang) * 70;
+                        this.puckVelocity.y += Math.sin(ang) * 70;
+                        this.puckVelocity.setLength(PUCK_SPEED * 1.08);
+                        bot.stealCooldown = 400;
+                        this.showFloatingText(pos.x, pos.y - 45, '¡ROBO!', '#ffcc00');
+                    }
+                    if (bot.stealCooldown > 0) bot.stealCooldown -= delta;
+                });
+
+                // ---- Física del disco ----
+                let nx = this.puck.x + this.puckVelocity.x * dt;
+                let ny = this.puck.y + this.puckVelocity.y * dt;
+
+                const verts = this.polygonVertices;
+                const n = verts.length;
+                for (let i = 0; i < n; i++) {
+                    const p1 = verts[i];
+                    const p2 = verts[(i + 1) % n];
+                    const dist = this.distToSegment(nx, ny, p1.x, p1.y, p2.x, p2.y);
+                    if (dist < this.puckRadius + 2) {
+                        const dx = p2.x - p1.x,
+                            dy = p2.y - p1.y;
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        let nxNorm = -dy / len,
+                            nyNorm = dx / len;
+                        const cx = W / 2,
+                            cy = H / 2;
+                        const midX = (p1.x + p2.x) / 2,
+                            midY = (p1.y + p2.y) / 2;
+                        const toCenterX = cx - midX,
+                            toCenterY = cy - midY;
+                        if (nxNorm * toCenterX + nyNorm * toCenterY < 0) { nxNorm *= -1;
+                            nyNorm *= -1; }
+                        const vx = this.puckVelocity.x,
+                            vy = this.puckVelocity.y;
+                        const dot = vx * nxNorm + vy * nyNorm;
+                        if (dot < 0) {
+                            this.puckVelocity.x -= 2 * dot * nxNorm;
+                            this.puckVelocity.y -= 2 * dot * nyNorm;
+                            const overlap = this.puckRadius + 2 - dist + 1;
+                            nx += nxNorm * overlap;
+                            ny += nyNorm * overlap;
+                        }
+                        break;
+                    }
+                }
+
+                // Colisión con humano
+                const dP = Phaser.Math.Distance.Between(nx, ny, this.player.x, this.player.y);
+                if (dP < this.playerRadius + this.puckRadius + 2) {
+                    const normX = (nx - this.player.x) / dP;
+                    const normY = (ny - this.player.y) / dP;
+                    this.puckVelocity.x -= 2 * (this.puckVelocity.x * normX + this.puckVelocity.y * normY) * normX * 0.8;
+                    this.puckVelocity.y -= 2 * (this.puckVelocity.x * normX + this.puckVelocity.y * normY) * normY * 0.8;
+                    this.puckVelocity.setLength(PUCK_SPEED * 1.05);
+                    nx = this.player.x + normX * (this.playerRadius + this.puckRadius + 2);
+                    ny = this.player.y + normY * (this.playerRadius + this.puckRadius + 2);
+                    this.showFloatingText(this.puck.x, this.puck.y - 20, '¡DEVUELVE!', '#00f5ff');
+                }
+
+                // Colisión con bots
+                this.bots.forEach(bot => {
+                    const pos = this.getPointOnSide(bot.side, bot.t);
+                    const dB = Phaser.Math.Distance.Between(nx, ny, pos.x, pos.y);
+                    if (dB < bot.radius + this.puckRadius + 2) {
+                        const normX = (nx - pos.x) / dB;
+                        const normY = (ny - pos.y) / dB;
+                        this.puckVelocity.x -= 2 * (this.puckVelocity.x * normX + this.puckVelocity.y * normY) *
+                            normX * 0.7;
+                        this.puckVelocity.y -= 2 * (this.puckVelocity.x * normX + this.puckVelocity.y * normY) *
+                            normY * 0.7;
+                        this.puckVelocity.setLength(PUCK_SPEED * 1.05);
+                        nx = pos.x + normX * (bot.radius + this.puckRadius + 2);
+                        ny = pos.y + normY * (bot.radius + this.puckRadius + 2);
+                        const colorStr = '#' + bot.color.toString(16).padStart(6, '0');
+                        this.showFloatingText(this.puck.x, this.puck.y + 20, '¡INTERCEPTA!', colorStr);
+                    }
+                });
+
+                // Goles
+                if (!this.pointInPolygon(nx, ny)) {
+                    let minDist = Infinity,
+                        minSideIdx = -1;
+                    for (let i = 0; i < n; i++) {
+                        const p1 = verts[i];
+                        const p2 = verts[(i + 1) % n];
+                        const d = this.distToSegment(nx, ny, p1.x, p1.y, p2.x, p2.y);
+                        if (d < minDist) { minDist = d;
+                            minSideIdx = i; }
+                    }
+                    if (minSideIdx === 0) {
+                        this.triggerGoal('¡TE HAN MARCADO!', '#ff3366');
+                    } else {
+                        this.triggerGoal('¡GOL DE TÚ!', '#00f5ff');
+                    }
+                    return;
+                }
+
+                this.puck.setPosition(nx, ny);
+                this.animateTrail();
+            }
+
+            // ---------- PROYECTAR PUNTO SOBRE SEGMENTO ----------
+            projectPointOnSegment(side, point) {
+                const ax = side.p1.x,
+                    ay = side.p1.y;
+                const bx = side.p2.x,
+                    by = side.p2.y;
+                const dx = bx - ax,
+                    dy = by - ay;
+                const len2 = dx * dx + dy * dy;
+                if (len2 === 0) return 0.5;
+                let t = ((point.x - ax) * dx + (point.y - ay) * dy) / len2;
+                return Phaser.Math.Clamp(t, 0, 1);
+            }
+
+            // ---------- UTILIDADES ----------
+            distToSegment(px, py, x1, y1, x2, y2) {
+                const dx = x2 - x1,
+                    dy = y2 - y1;
+                const len2 = dx * dx + dy * dy;
+                let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+                t = Math.max(0, Math.min(1, t));
+                const nearX = x1 + t * dx,
+                    nearY = y1 + t * dy;
+                return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
+            }
+
+            pointInPolygon(px, py) {
+                const verts = this.polygonVertices;
+                let inside = false;
+                for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+                    const xi = verts[i].x,
+                        yi = verts[i].y;
+                    const xj = verts[j].x,
+                        yj = verts[j].y;
+                    const intersect = ((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
+
+            // ---------- GOL Y REINICIO ----------
+            triggerGoal(msg, color) {
+                if (this.puckJustScored) return;
+                this.puckJustScored = true;
+                this.isGameOver = true;
+                this.puckVelocity.set(0, 0);
+                this.cameras.main.flash(300, 255, 255, 255, 0.15);
+                this.showFloatingText(W / 2, H / 2 - 80, msg, color);
+                this.showFloatingText(W / 2, H / 2 - 40, 'Presiona "SACAR"', '#ffffff');
+                this.tweens.add({ targets: this.restartBtn, alpha: 1, scale: 1, duration: 250, ease: 'Back.easeOut' });
+            }
+
+            createRestartButton() {
+                this.restartBtn = this.add.container(W / 2, H / 2 + 30).setAlpha(0).setScale(0.7);
+                const bg = this.add.rectangle(0, 0, 190, 48, 0x101026).setStrokeStyle(2, 0x00f5ff)
+                    .setInteractive({ useHandCursor: true });
+                const txt = this.add.text(0, 0, 'SACAR PELOTA', { fontSize: '16px', fontFamily: 'Arial', fontWeight: 'bold',
+                    fill: '#00f5ff' })
+                    .setOrigin(0.5);
+                this.restartBtn.add([bg, txt]);
+                bg.on('pointerdown', () => this.resetMatch());
+                bg.on('pointerover', () => { bg.setFillStyle(0x00f5ff);
+                    txt.setFillStyle('#0a0817'); });
+                bg.on('pointerout', () => { bg.setFillStyle(0x101026);
+                    txt.setFillStyle('#00f5ff'); });
+            }
+
+            resetMatch() {
+                this.tweens.add({
+                    targets: this.restartBtn,
+                    alpha: 0,
+                    scale: 0.7,
+                    duration: 150,
+                    onComplete: () => {
+                        this.isGameOver = false;
+                        this.puckJustScored = false;
+                        this.puck.setPosition(W / 2, H / 2);
+                        this.launchPuck();
+                        this.humanT = 0.5;
+                        const hp = this.getPointOnSide(this.humanSide, 0.5);
+                        this.player.setPosition(hp.x, hp.y);
+                        this.humanLabel.setPosition(hp.x, hp.y + 32);
+                        this.bots.forEach(bot => {
+                            bot.t = 0.5;
+                            bot.targetT = 0.5;
+                            const pos = this.getPointOnSide(bot.side, 0.5);
+                            bot.display.setPosition(pos.x, pos.y);
+                            bot.labelText.setPosition(pos.x, pos.y - 28);
+                        });
+                    }
+                });
+            }
+
+            // ---------- EFECTOS VISUALES ----------
+            animateTrail() {
+                this.trail = this.trail || this.add.graphics();
+                this.trail.clear();
+                this.puckHistory.push({ x: this.puck.x, y: this.puck.y });
+                if (this.puckHistory.length > 8) this.puckHistory.shift();
+                for (let i = 0; i < this.puckHistory.length; i++) {
+                    const p = this.puckHistory[i];
+                    this.trail.fillStyle(0x00f5ff, (i / this.puckHistory.length) * 0.18);
+                    this.trail.fillCircle(p.x, p.y, (i / this.puckHistory.length) * 8);
+                }
+            }
+
+            showFloatingText(x, y, msg, color) {
+                const t = this.add.text(x, y, msg, { fontSize: '18px', fontFamily: 'Arial', fontWeight: 'bold', fill: color })
+                    .setOrigin(0.5);
+                this.tweens.add({ targets: t, y: y - 45, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+            }
+        }
+
+        // ============================================================
+        // INICIO DEL JUEGO
+        // ============================================================
+        function startGame(opponents, difficulty) {
+            window._gameData = { opponents, difficulty };
+            const config = {
+                type: Phaser.AUTO,
+                width: W,
+                height: H,
+                parent: 'game-canvas',
+                backgroundColor: '#0a0817',
+                scale: {
+                    mode: Phaser.Scale.FIT,
+                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                },
+                physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+                scene: GameScene
+            };
+            window.gameInstance = new Phaser.Game(config);
+        }
+    </script>
+</body>
+</html>

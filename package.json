@@ -1,0 +1,16 @@
+{
+  "name": "tableball-pusher",
+  "version": "1.0.0",
+  "description": "Juego tipo fleeper con paletas y bola",
+  "main": "index.js",
+  "scripts": {
+    "start": "bun bun-server.ts",
+    "dev": "bun bun-server.ts",
+    "build": "bun build index.html --outdir dist",
+    "preview": "bun bun-server.ts",
+    "serve": "bun bun-server.ts"
+  },
+  "keywords": ["phaser", "game", "pong"],
+  "author": "",
+  "license": "MIT"
+}
